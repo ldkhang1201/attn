@@ -1,7 +1,7 @@
 # B3 · Transformer Attention Mechanism
 
-**[Full project report → REPORT.md](REPORT.md)** — bottleneck analysis, kernel
-design, timing methodology, metrics, charts, and insights.
+**[Full walkthrough → demo.ipynb](demo.ipynb)** — bottleneck analysis, kernel
+design, timing methodology, metrics, and charts, with outputs.
 
 Scaled dot-product attention implemented from scratch with numba CUDA and
 optimised in three steps. Everything except attention (embedding, projections,
@@ -15,6 +15,16 @@ is replaced.
 | `GpuV1` | `src/gpu_v1.py` | naive three-kernel attention, everything through global memory |
 | `GpuV2` | `src/gpu_v2.py` | tiled QKᵀ in shared memory + single-pass online softmax |
 | `GpuV3` | `src/gpu_v3.py` | FlashAttention-style fused kernel, never materialises the N×N matrix |
+
+V1 is the straight port: correct and massively parallel, but every
+intermediate — including the full N×N score matrix — round-trips through
+global memory. V2 keeps the same three-kernel structure but fixes *reuse*:
+16×16 shared-memory tiles cut redundant global loads, and an online softmax
+collapses three passes over each row into one. V3 changes the algorithm
+itself, fusing QKᵀ, softmax, and the weighted sum into a single kernel
+(FlashAttention-1) so the N×N matrix V2 was economising never gets
+materialised at all — trading a per-tile rescale/renormalise for O(N²)
+memory traffic that no longer exists.
 
 ## Layout
 
